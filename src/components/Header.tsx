@@ -153,29 +153,23 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">Auth</span>
         </button>
 
-        {/* Google / Account Button */}
-        {isFirebaseUser ? (
-          <div className="flex items-center space-x-1.5">
-            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-              {currentUser.displayName.charAt(0)}
-            </div>
-            <button
-              onClick={onSignOut}
-              title="Sign Out of Google Session"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={onGoogleSignIn}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-all shadow-emerald-500/20"
+        {/* User Profile & Sign Out Button */}
+        <div className="flex items-center space-x-1.5">
+          <div 
+            onClick={onOpenLoginModal}
+            title={`${currentUser.displayName} (${currentUser.role}) - Click to switch profile`}
+            className="w-8 h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 cursor-pointer text-white font-bold text-xs flex items-center justify-center shadow-xs transition-colors"
           >
-            <LogIn className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign In</span>
+            {currentUser.displayName.charAt(0)}
+          </div>
+          <button
+            onClick={onSignOut}
+            title="Log Out of system session"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
-        )}
+        </div>
       </div>
     </header>
   );

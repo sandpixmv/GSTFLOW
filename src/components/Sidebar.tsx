@@ -30,6 +30,7 @@ interface SidebarProps {
   supplierDocsCount: number;
   onOpenCreateInvoice: () => void;
   onOpenLoginModal: () => void;
+  onSignOut?: () => void;
   isCloudSynced: boolean;
   isSyncing: boolean;
   isMobileOpen: boolean;
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   supplierDocsCount,
   onOpenCreateInvoice,
   onOpenLoginModal,
+  onSignOut,
   isCloudSynced,
   isSyncing,
   isMobileOpen,
@@ -322,13 +324,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={onOpenLoginModal}
-                  title="Switch user account or authenticate"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                >
-                  <KeyRound className="w-4 h-4" />
-                </button>
+                <div className="flex items-center space-x-1 flex-shrink-0">
+                  <button
+                    onClick={onOpenLoginModal}
+                    title="Switch user account or authenticate"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </button>
+
+                  {onSignOut && (
+                    <button
+                      onClick={onSignOut}
+                      title="Log Out of system session"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

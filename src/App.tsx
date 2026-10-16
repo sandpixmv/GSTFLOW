@@ -65,7 +65,24 @@ export default function App() {
 
   const [usersList, setUsersList] = useState<SystemUserAccount[]>(() => {
     const saved = localStorage.getItem('taxflow_maldives_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS_LIST;
+    if (saved) {
+      try {
+        const parsed: SystemUserAccount[] = JSON.parse(saved);
+        return parsed.map((u, i) => ({
+          ...u,
+          username: u.username || (u.email ? u.email.split('@')[0].toLowerCase() : `user_${i + 1}`),
+          password: u.password || (u.role === 'admin' ? 'admin123' : 'pass123'),
+        }));
+      } catch {
+        return INITIAL_USERS_LIST;
+      }
+    }
+    return INITIAL_USERS_LIST;
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const session = localStorage.getItem('taxflow_maldives_auth_session');
+    return session !== 'logged_out';
   });
 
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
@@ -221,6 +238,8 @@ export default function App() {
       const res = await signInWithPopup(auth, googleProvider);
       if (res.user) {
         setFirebaseUser(res.user);
+        setIsAuthenticated(true);
+        localStorage.setItem('taxflow_maldives_auth_session', 'logged_in');
         setCurrentUser((prev) => ({
           ...prev,
           id: res.user.uid,
@@ -238,11 +257,16 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      setFirebaseUser(null);
+      if (firebaseUser) {
+        await signOut(auth);
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Sign out warning:', err);
     }
+    setFirebaseUser(null);
+    setIsAuthenticated(false);
+    localStorage.setItem('taxflow_maldives_auth_session', 'logged_out');
+    setIsLoginModalOpen(true);
   };
 
   const handleManualSync = async () => {
@@ -254,17 +278,67 @@ export default function App() {
     }, 600);
   };
 
-  // 1-Click Role Login from LoginModal
-  const handleQuickRoleLogin = (role: UserRole, customName?: string, customEmail?: string) => {
-    const preset = ROLE_PRESETS[role];
+  // Credentials Authentication (Username & Password)
+  const handleLoginWithCredentials = async (
+    identifier: string,
+    pass: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const searchId = identifier.trim().toLowerCase();
+
+    // Find account by matching username or email
+    let matchedUser = usersList.find(
+      (u) =>
+        (u.username && u.username.toLowerCase() === searchId) ||
+        u.email.toLowerCase() === searchId
+    );
+
+    // Fallback if "admin" or primary admin email
+    if (!matchedUser && (searchId === 'admin' || searchId === 'sandpix.mv@gmail.com')) {
+      matchedUser = usersList.find((u) => u.role === 'admin') || usersList[0];
+    }
+
+    if (!matchedUser) {
+      return {
+        success: false,
+        error: 'No account found matching this username or email. Please verify your credentials.',
+      };
+    }
+
+    if (matchedUser.status === 'suspended') {
+      return {
+        success: false,
+        error: 'This account has been suspended by the administrator. Please contact your system admin.',
+      };
+    }
+
+    const expectedPass = matchedUser.password || (matchedUser.role === 'admin' ? 'admin123' : 'pass123');
+    if (pass !== expectedPass) {
+      return {
+        success: false,
+        error: 'Incorrect password. Please verify your credentials and try again.',
+      };
+    }
+
+    // Role preset permissions
+    const roleConfig = ROLE_PRESETS[matchedUser.role] || ROLE_PRESETS.admin;
     setCurrentUser((prev) => ({
       ...prev,
-      role,
-      displayName: customName || preset.label,
-      email: customEmail || prev.email,
-      permissions: { ...preset.permissions },
+      id: matchedUser!.id,
+      displayName: matchedUser!.name,
+      email: matchedUser!.email,
+      role: matchedUser!.role,
+      permissions: { ...roleConfig.permissions },
       lastActive: 'Just now',
     }));
+
+    // Update lastLogin status
+    setUsersList((prev) =>
+      prev.map((u) => (u.id === matchedUser!.id ? { ...u, lastLogin: 'Active now' } : u))
+    );
+
+    setIsAuthenticated(true);
+    localStorage.setItem('taxflow_maldives_auth_session', 'logged_in');
+    return { success: true };
   };
 
   // User Management Handlers (Admin Only)
@@ -509,6 +583,18 @@ export default function App() {
     if (jsonData.miraGstReports) setGstReports(jsonData.miraGstReports);
   };
 
+  // If user is logged out, render user-friendly, secure login screen
+  if (!isAuthenticated) {
+    return (
+      <LoginModal
+        isOpen={true}
+        onLoginWithCredentials={handleLoginWithCredentials}
+        onGoogleSignIn={handleGoogleSignIn}
+        isFullScreen={true}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans antialiased text-slate-800">
       {/* Modern Left Sidebar */}
@@ -523,6 +609,7 @@ export default function App() {
           setIsInvoiceModalOpen(true);
         }}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onSignOut={handleSignOut}
         isCloudSynced={isCloudSynced}
         isSyncing={isSyncing}
         isMobileOpen={isMobileSidebarOpen}
@@ -675,14 +762,13 @@ export default function App() {
         currentUser={currentUser}
       />
 
-      {/* Login & Role Authentication Modal */}
+      {/* Login & Authentication Modal for Switching User */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
+        onLoginWithCredentials={handleLoginWithCredentials}
         onGoogleSignIn={handleGoogleSignIn}
-        onQuickRoleLogin={handleQuickRoleLogin}
-        currentRole={currentUser.role}
-        isFirebaseUser={!!firebaseUser}
+        isFullScreen={false}
       />
     </div>
   );

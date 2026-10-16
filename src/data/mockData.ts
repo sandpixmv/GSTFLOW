@@ -133,7 +133,10 @@ export const INITIAL_USERS_LIST: SystemUserAccount[] = [
   {
     id: 'usr_admin_sandpix',
     name: 'Lead Financial Controller',
+    username: 'admin',
     email: 'sandpix.mv@gmail.com',
+    password: 'admin123',
+    phone: '+960 771-0022',
     role: 'admin',
     department: 'Executive Finance',
     status: 'active',
@@ -143,7 +146,10 @@ export const INITIAL_USERS_LIST: SystemUserAccount[] = [
   {
     id: 'usr_mgr_ahmed',
     name: 'Ahmed Naseem',
+    username: 'naseem',
     email: 'naseem.finance@dhivehicommercial.mv',
+    password: 'manager123',
+    phone: '+960 778-4512',
     role: 'finance_manager',
     department: 'Treasury & Accounts',
     status: 'active',
@@ -153,7 +159,10 @@ export const INITIAL_USERS_LIST: SystemUserAccount[] = [
   {
     id: 'usr_acc_mariyam',
     name: 'Mariyam Shiuna',
+    username: 'shiuna',
     email: 'shiuna.accounts@dhivehicommercial.mv',
+    password: 'accountant123',
+    phone: '+960 790-1188',
     role: 'accountant',
     department: 'Accounts Payable',
     status: 'active',
@@ -163,7 +172,10 @@ export const INITIAL_USERS_LIST: SystemUserAccount[] = [
   {
     id: 'usr_aud_hussain',
     name: 'Hussain Latheef (MIRA Auditor)',
+    username: 'auditor',
     email: 'hussain.audit@mira.gov.mv',
+    password: 'auditor123',
+    phone: '+960 332-2244',
     role: 'auditor',
     department: 'Statutory Tax Audit',
     status: 'active',

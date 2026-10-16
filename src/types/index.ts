@@ -169,7 +169,10 @@ export interface UserProfile {
 export interface SystemUserAccount {
   id: string;
   name: string;
+  username: string;
   email: string;
+  password?: string;
+  phone?: string;
   role: UserRole;
   department: string;
   status: 'active' | 'suspended';
