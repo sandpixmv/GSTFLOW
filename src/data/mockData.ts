@@ -4,7 +4,9 @@ import {
   MaldivesGstReport, 
   MaldivesGstInputRecord, 
   BackupSnapshot, 
-  UserProfile 
+  UserProfile,
+  SystemUserAccount,
+  SystemSettings
 } from '../types';
 
 export const DEFAULT_COMPANY: UserProfile = {
@@ -13,10 +15,19 @@ export const DEFAULT_COMPANY: UserProfile = {
   displayName: 'Lead Financial Controller',
   role: 'admin',
   companyName: 'Dhivehi Commercial Enterprises Pvt Ltd',
+  tradeName: 'Dhivehi Commercial',
+  registrationNumber: 'C-0824/2019',
   tin: '1029384GST501',
   address: 'H. Orchidmaage, 4th Floor, Boduthakurufaanu Magu, Male 20026',
   atollOrCity: "Male' City, Republic of Maldives",
+  phone: '+960 332-8899',
+  website: 'https://dhivehicommercial.mv',
+  sector: 'General',
   taxableActivityNumber: 1,
+  bankName: 'Bank of Maldives (BML)',
+  bankAccountNumber: '7730000128472',
+  bankAccountName: 'Dhivehi Commercial Enterprises Pvt Ltd',
+  invoiceFooterNote: 'Payment due within 14 days. Thank you for your business. Registered with Maldives Inland Revenue Authority (MIRA).',
   permissions: {
     canCreateInvoices: true,
     canEditInvoices: true,
@@ -25,6 +36,9 @@ export const DEFAULT_COMPANY: UserProfile = {
     canExportReports: true,
     canManageBackups: true,
     canVerifySupplierDocs: true,
+    canManageUsers: true,
+    canManageSettings: true,
+    canEditBusinessProfile: true,
   },
   lastActive: 'Just now',
 };
@@ -33,7 +47,7 @@ export const ROLE_PRESETS = {
   admin: {
     role: 'admin' as const,
     label: 'Chief Administrator (Admin)',
-    description: 'Full unconstrained system authority, MIRA GST filing, cloud backup controls, role allocation',
+    description: 'Full unconstrained system authority: system settings, user creation, business profile changes, MIRA GST filing, and common features',
     permissions: {
       canCreateInvoices: true,
       canEditInvoices: true,
@@ -42,12 +56,15 @@ export const ROLE_PRESETS = {
       canExportReports: true,
       canManageBackups: true,
       canVerifySupplierDocs: true,
+      canManageUsers: true,
+      canManageSettings: true,
+      canEditBusinessProfile: true,
     },
   },
   finance_manager: {
     role: 'finance_manager' as const,
     label: 'Finance Manager',
-    description: 'Sales invoice authoring, MIRA 205 report filing, cash flow supervision, supplier verification',
+    description: 'Sales invoice authoring, MIRA 205 report filing, cash flow supervision, supplier verification (Settings & User creation restricted)',
     permissions: {
       canCreateInvoices: true,
       canEditInvoices: true,
@@ -56,12 +73,15 @@ export const ROLE_PRESETS = {
       canExportReports: true,
       canManageBackups: true,
       canVerifySupplierDocs: true,
+      canManageUsers: false,
+      canManageSettings: false,
+      canEditBusinessProfile: false,
     },
   },
   accountant: {
     role: 'accountant' as const,
     label: 'Senior Accountant',
-    description: 'Daily invoicing, purchase voucher entry into MIRA template, document tagging',
+    description: 'Daily invoicing, purchase voucher entry into MIRA template, document tagging (Read & prepare only)',
     permissions: {
       canCreateInvoices: true,
       canEditInvoices: true,
@@ -70,6 +90,9 @@ export const ROLE_PRESETS = {
       canExportReports: true,
       canManageBackups: false,
       canVerifySupplierDocs: true,
+      canManageUsers: false,
+      canManageSettings: false,
+      canEditBusinessProfile: false,
     },
   },
   auditor: {
@@ -84,9 +107,70 @@ export const ROLE_PRESETS = {
       canExportReports: true,
       canManageBackups: false,
       canVerifySupplierDocs: false,
+      canManageUsers: false,
+      canManageSettings: false,
+      canEditBusinessProfile: false,
     },
   },
 };
+
+export const INITIAL_SYSTEM_SETTINGS: SystemSettings = {
+  defaultGstRate: 8,
+  primarySector: 'General',
+  taxYear: 2026,
+  filingFrequency: 'Monthly',
+  requireTinValidation: true,
+  autoSequencing: true,
+  invoicePrefix: 'INV-2026-',
+  currency: 'MVR',
+  sessionTimeoutMinutes: 60,
+  enableAuditLog: true,
+  autoSyncCloud: true,
+  backupFrequency: 'Daily',
+};
+
+export const INITIAL_USERS_LIST: SystemUserAccount[] = [
+  {
+    id: 'usr_admin_sandpix',
+    name: 'Lead Financial Controller',
+    email: 'sandpix.mv@gmail.com',
+    role: 'admin',
+    department: 'Executive Finance',
+    status: 'active',
+    createdAt: '2026-01-10',
+    lastLogin: 'Active now',
+  },
+  {
+    id: 'usr_mgr_ahmed',
+    name: 'Ahmed Naseem',
+    email: 'naseem.finance@dhivehicommercial.mv',
+    role: 'finance_manager',
+    department: 'Treasury & Accounts',
+    status: 'active',
+    createdAt: '2026-02-15',
+    lastLogin: '2 hours ago',
+  },
+  {
+    id: 'usr_acc_mariyam',
+    name: 'Mariyam Shiuna',
+    email: 'shiuna.accounts@dhivehicommercial.mv',
+    role: 'accountant',
+    department: 'Accounts Payable',
+    status: 'active',
+    createdAt: '2026-03-01',
+    lastLogin: 'Yesterday',
+  },
+  {
+    id: 'usr_aud_hussain',
+    name: 'Hussain Latheef (MIRA Auditor)',
+    email: 'hussain.audit@mira.gov.mv',
+    role: 'auditor',
+    department: 'Statutory Tax Audit',
+    status: 'active',
+    createdAt: '2026-04-12',
+    lastLogin: '3 days ago',
+  },
+];
 
 // Exact 12 Rows from User's Attached Maldives GST Input Template
 export const INITIAL_GST_INPUT_RECORDS: MaldivesGstInputRecord[] = [

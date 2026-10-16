@@ -137,6 +137,9 @@ export interface UserPermissions {
   canExportReports: boolean;
   canManageBackups: boolean;
   canVerifySupplierDocs: boolean;
+  canManageUsers: boolean;
+  canManageSettings: boolean;
+  canEditBusinessProfile: boolean;
 }
 
 export interface UserProfile {
@@ -145,13 +148,49 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   companyName: string;
+  tradeName?: string;
+  registrationNumber?: string;
   tin: string; // MIRA TIN e.g. 1029384GST501
   address: string;
   atollOrCity: string;
+  phone?: string;
+  website?: string;
+  sector?: 'General' | 'Tourism';
   taxableActivityNumber: number;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  invoiceFooterNote?: string;
   permissions: UserPermissions;
   avatarUrl?: string;
   lastActive?: string;
+}
+
+export interface SystemUserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department: string;
+  status: 'active' | 'suspended';
+  createdAt: string;
+  lastLogin?: string;
+  avatarUrl?: string;
+}
+
+export interface SystemSettings {
+  defaultGstRate: MaldivesGstRate;
+  primarySector: 'General' | 'Tourism';
+  taxYear: number;
+  filingFrequency: 'Monthly' | 'Quarterly';
+  requireTinValidation: boolean;
+  autoSequencing: boolean;
+  invoicePrefix: string;
+  currency: string;
+  sessionTimeoutMinutes: number;
+  enableAuditLog: boolean;
+  autoSyncCloud: boolean;
+  backupFrequency: 'Hourly' | 'Daily' | 'Weekly';
 }
 
 export interface BackupSnapshot {

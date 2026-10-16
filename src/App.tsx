@@ -22,7 +22,9 @@ import {
   UserProfile, 
   UserRole,
   InvoiceStatus,
-  SupplierDocStatus 
+  SupplierDocStatus,
+  SystemUserAccount,
+  SystemSettings
 } from './types';
 import { 
   DEFAULT_COMPANY, 
@@ -30,7 +32,9 @@ import {
   INITIAL_INVOICES, 
   INITIAL_SUPPLIER_DOCUMENTS, 
   INITIAL_MALDIVES_GST_REPORTS, 
-  INITIAL_BACKUPS 
+  INITIAL_BACKUPS,
+  INITIAL_SYSTEM_SETTINGS,
+  INITIAL_USERS_LIST
 } from './data/mockData';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
@@ -40,14 +44,28 @@ import { GstReportsView } from './components/GstReportsView';
 import { SupplierVaultView } from './components/SupplierVaultView';
 import { UploadSupplierDocModal } from './components/UploadSupplierDocModal';
 import { CloudBackupsView } from './components/CloudBackupsView';
-import { RolesSecurityView } from './components/RolesSecurityView';
+import { AdminCenterView } from './components/AdminCenterView';
 import { NeonDatabaseView } from './components/NeonDatabaseView';
+import { LoginModal } from './components/LoginModal';
+import { Sidebar } from './components/Sidebar';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<string>('gst');
+  // Default to Dashboard as requested
+  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('taxflow_maldives_profile');
     return saved ? JSON.parse(saved) : DEFAULT_COMPANY;
+  });
+
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const saved = localStorage.getItem('taxflow_maldives_settings');
+    return saved ? JSON.parse(saved) : INITIAL_SYSTEM_SETTINGS;
+  });
+
+  const [usersList, setUsersList] = useState<SystemUserAccount[]>(() => {
+    const saved = localStorage.getItem('taxflow_maldives_users');
+    return saved ? JSON.parse(saved) : INITIAL_USERS_LIST;
   });
 
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
@@ -74,10 +92,13 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
 
-  // Modal States
+  // Modal & Navigation States
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Local storage synchronization
   useEffect(() => {
@@ -99,6 +120,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('taxflow_maldives_profile', JSON.stringify(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('taxflow_maldives_settings', JSON.stringify(systemSettings));
+  }, [systemSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('taxflow_maldives_users', JSON.stringify(usersList));
+  }, [usersList]);
 
   // Boot connection check & Auth state listener
   useEffect(() => {
@@ -175,7 +204,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [invoices, supplierDocs, gstReports]);
 
-  // Role Switcher
+  // Role Switcher with strict permissions update
   const handleRoleChange = (newRole: UserRole) => {
     const roleConfig = ROLE_PRESETS[newRole];
     setCurrentUser((prev) => ({
@@ -225,13 +254,56 @@ export default function App() {
     }, 600);
   };
 
+  // 1-Click Role Login from LoginModal
+  const handleQuickRoleLogin = (role: UserRole, customName?: string, customEmail?: string) => {
+    const preset = ROLE_PRESETS[role];
+    setCurrentUser((prev) => ({
+      ...prev,
+      role,
+      displayName: customName || preset.label,
+      email: customEmail || prev.email,
+      permissions: { ...preset.permissions },
+      lastActive: 'Just now',
+    }));
+  };
+
+  // User Management Handlers (Admin Only)
+  const handleCreateUser = (newUser: Omit<SystemUserAccount, 'id' | 'createdAt'>) => {
+    const user: SystemUserAccount = {
+      ...newUser,
+      id: `usr_${Date.now()}`,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setUsersList((prev) => [...prev, user]);
+  };
+
+  const handleUpdateUser = (id: string, updates: Partial<SystemUserAccount>) => {
+    setUsersList((prev) => prev.map((u) => (u.id === id ? { ...u, ...updates } : u)));
+  };
+
+  const handleDeleteUser = (id: string) => {
+    setUsersList((prev) => prev.filter((u) => u.id !== id));
+  };
+
+  const handleUpdateSystemSettings = (newSettings: SystemSettings) => {
+    setSystemSettings(newSettings);
+  };
+
+  // Business Profile Updates
+  const handleUpdateBusinessProfile = (profile: Partial<UserProfile>) => {
+    setCurrentUser((prev) => ({
+      ...prev,
+      ...profile,
+    }));
+  };
+
   // Invoice Actions
   const handleSaveInvoice = async (invoiceData: Partial<Invoice>) => {
     const isEdit = !!editingInvoice;
     let targetId = invoiceData.id || `inv-${Date.now()}`;
     const fullInvoice: Invoice = {
       id: targetId,
-      invoiceNumber: invoiceData.invoiceNumber || 'INV/2026/00100',
+      invoiceNumber: invoiceData.invoiceNumber || `${systemSettings.invoicePrefix}${Math.floor(1000 + Math.random() * 9000)}`,
       type: invoiceData.type || 'sales',
       counterpartyName: invoiceData.counterpartyName || 'Maldives Client',
       counterpartyTin: invoiceData.counterpartyTin || '',
@@ -249,9 +321,9 @@ export default function App() {
       gst17: invoiceData.gst17 || 0,
       totalGst: invoiceData.totalGst || 0,
       grandTotal: invoiceData.grandTotal || 0,
-      taxableActivityNumber: invoiceData.taxableActivityNumber || 1,
+      taxableActivityNumber: invoiceData.taxableActivityNumber || currentUser.taxableActivityNumber || 1,
       revenueOrCapital: invoiceData.revenueOrCapital || 'Revenue',
-      sector: invoiceData.sector || 'General',
+      sector: invoiceData.sector || currentUser.sector || 'General',
       notes: invoiceData.notes || '',
       userId: currentUser.id,
       createdAt: invoiceData.createdAt || new Date().toISOString(),
@@ -274,6 +346,10 @@ export default function App() {
   };
 
   const handleDeleteInvoice = async (id: string) => {
+    if (!currentUser.permissions.canDeleteInvoices) {
+      alert('Permission denied. Admin authorization is required to delete invoices.');
+      return;
+    }
     if (!confirm('Are you sure you want to delete this invoice?')) return;
     setInvoices((prev) => prev.filter((inv) => inv.id !== id));
     if (firebaseUser) {
@@ -298,47 +374,34 @@ export default function App() {
     setGstReports((prev) => {
       if (prev.length === 0) return prev;
       const target = { ...prev[0] };
-      const newRow: MaldivesGstInputRecord = {
-        id: `rec-${newDoc.id}`,
+      const newRec: MaldivesGstInputRecord = {
+        id: `rec-sync-${newDoc.id}`,
         rowNumber: target.inputRecords.length + 1,
         supplierTin: newDoc.supplierTin,
         supplierName: newDoc.supplierName,
         supplierInvoiceNumber: newDoc.invoiceNumber,
         invoiceDate: newDoc.invoiceDate,
-        invoiceTotalExclGst: newDoc.invoiceTotalExclGst,
-        gst6: newDoc.gst6,
-        gst8: newDoc.gst8,
-        gst12: newDoc.gst12,
-        gst16: newDoc.gst16,
-        gst17: newDoc.gst17,
-        taxableActivityNumber: newDoc.taxableActivityNumber,
-        revenueOrCapital: newDoc.revenueOrCapital,
+        invoiceTotalExclGst: newDoc.invoiceTotalExclGst || newDoc.totalAmount - newDoc.totalGst,
+        gst6: newDoc.gst6 || 0,
+        gst8: newDoc.gst8 || newDoc.totalGst,
+        gst12: newDoc.gst12 || 0,
+        gst16: newDoc.gst16 || 0,
+        gst17: newDoc.gst17 || 0,
+        taxableActivityNumber: newDoc.taxableActivityNumber || currentUser.taxableActivityNumber || 1,
+        revenueOrCapital: newDoc.revenueOrCapital || 'Revenue',
         matchedSupplierDocId: newDoc.id,
       };
-
-      const newRecords = [...target.inputRecords, newRow];
-      const totalExcl = newRecords.reduce((s, r) => s + r.invoiceTotalExclGst, 0);
-      const total8 = newRecords.reduce((s, r) => s + r.gst8, 0);
-      const totalItc = total8;
-      const netPayable = target.totalOutputTax - totalItc;
-
-      return [
-        {
-          ...target,
-          inputRecords: newRecords,
-          totalInputExclGst: totalExcl,
-          totalInputGst8: total8,
-          totalInputTaxCredit: totalItc,
-          netGstPayable: netPayable,
-          updatedAt: new Date().toISOString(),
-        },
-        ...prev.slice(1),
-      ];
+      target.inputRecords = [...target.inputRecords, newRec];
+      return [target, ...prev.slice(1)];
     });
   };
 
   const handleDeleteSupplierDoc = (id: string) => {
-    if (!confirm('Delete this supplier bill from vault?')) return;
+    if (!currentUser.permissions.canDeleteInvoices) {
+      alert('Permission denied. Administrator privileges required to delete archived supplier documents.');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this archived supplier document?')) return;
     setSupplierDocs((prev) => prev.filter((d) => d.id !== id));
   };
 
@@ -350,8 +413,8 @@ export default function App() {
 
   const handleConvertDocToInvoice = (docItem: SupplierDocument) => {
     const newInvoice: Invoice = {
-      id: `inv-${Date.now()}`,
-      invoiceNumber: docItem.invoiceNumber,
+      id: `inv-from-${docItem.id}`,
+      invoiceNumber: `VCH-${docItem.invoiceNumber.replace(/[^a-zA-Z0-9]/g, '')}`,
       type: 'purchase',
       counterpartyName: docItem.supplierName,
       counterpartyTin: docItem.supplierTin,
@@ -361,12 +424,12 @@ export default function App() {
       items: [
         {
           id: `item-${Date.now()}`,
-          description: `Supplier Procurement: ${docItem.category}`,
+          description: `Supplier bill recorded: ${docItem.category}`,
           quantity: 1,
           unitPrice: docItem.invoiceTotalExclGst,
           gstRate: 8,
           taxableAmount: docItem.invoiceTotalExclGst,
-          gstAmount: docItem.gst8 || docItem.totalGst,
+          gstAmount: docItem.totalGst,
           total: docItem.totalAmount,
           revenueOrCapital: docItem.revenueOrCapital,
         },
@@ -447,113 +510,150 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
-      {/* Header */}
-      <Header
+    <div className="min-h-screen bg-slate-100 flex font-sans antialiased text-slate-800">
+      {/* Modern Left Sidebar */}
+      <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         currentUser={currentUser}
-        onRoleChange={handleRoleChange}
+        invoicesCount={invoices.length}
+        supplierDocsCount={supplierDocs.length}
+        onOpenCreateInvoice={() => {
+          setEditingInvoice(null);
+          setIsInvoiceModalOpen(true);
+        }}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
         isCloudSynced={isCloudSynced}
         isSyncing={isSyncing}
-        onManualSync={handleManualSync}
-        isFirebaseUser={!!firebaseUser}
-        onGoogleSignIn={handleGoogleSignIn}
-        onSignOut={handleSignOut}
+        isMobileOpen={isMobileSidebarOpen}
+        setIsMobileOpen={setIsMobileSidebarOpen}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {currentTab === 'dashboard' && (
-          <DashboardView
-            invoices={invoices}
-            supplierDocs={supplierDocs}
-            gstReports={gstReports}
-            currentUser={currentUser}
-            onOpenCreateInvoice={() => {
-              setEditingInvoice(null);
-              setIsInvoiceModalOpen(true);
-            }}
-            onOpenUploadDoc={() => setIsUploadDocModalOpen(true)}
-            onOpenGstReport={() => setCurrentTab('gst')}
-            onTriggerBackup={() => handleCreateBackup('Manual MIRA Snapshot Trigger', 'manual')}
-          />
-        )}
+      {/* Main Content Area with dynamic left padding for sidebar */}
+      <div
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+          isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Modern Topbar Header */}
+        <Header
+          currentTab={currentTab}
+          currentUser={currentUser}
+          onRoleChange={handleRoleChange}
+          isCloudSynced={isCloudSynced}
+          isSyncing={isSyncing}
+          onManualSync={handleManualSync}
+          isFirebaseUser={!!firebaseUser}
+          onGoogleSignIn={handleGoogleSignIn}
+          onSignOut={handleSignOut}
+          onOpenLoginModal={() => setIsLoginModalOpen(true)}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+        />
 
-        {currentTab === 'gst' && (
-          <GstReportsView
-            reports={gstReports}
-            invoices={invoices}
-            supplierDocs={supplierDocs}
-            currentUser={currentUser}
-            onUpdateReport={handleUpdateGstReport}
-            onFileReport={handleFileGstReport}
-          />
-        )}
+        {/* View Main Content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {currentTab === 'dashboard' && (
+            <DashboardView
+              invoices={invoices}
+              supplierDocs={supplierDocs}
+              gstReports={gstReports}
+              currentUser={currentUser}
+              onOpenCreateInvoice={() => {
+                setEditingInvoice(null);
+                setIsInvoiceModalOpen(true);
+              }}
+              onOpenUploadDoc={() => setIsUploadDocModalOpen(true)}
+              onOpenGstReport={() => setCurrentTab('gst')}
+              onTriggerBackup={() => handleCreateBackup('Manual MIRA Snapshot Trigger', 'manual')}
+              onNavigateTab={(tab) => setCurrentTab(tab)}
+              usersCount={usersList.length}
+            />
+          )}
 
-        {currentTab === 'invoices' && (
-          <InvoicesView
-            invoices={invoices}
-            currentUser={currentUser}
-            onOpenCreateModal={() => {
-              setEditingInvoice(null);
-              setIsInvoiceModalOpen(true);
-            }}
-            onEditInvoice={(inv) => {
-              setEditingInvoice(inv);
-              setIsInvoiceModalOpen(true);
-            }}
-            onDeleteInvoice={handleDeleteInvoice}
-            onUpdateStatus={handleUpdateInvoiceStatus}
-            onViewSupplierDoc={(docId) => setCurrentTab('supplier-vault')}
-          />
-        )}
+          {currentTab === 'gst' && (
+            <GstReportsView
+              reports={gstReports}
+              invoices={invoices}
+              supplierDocs={supplierDocs}
+              currentUser={currentUser}
+              onUpdateReport={handleUpdateGstReport}
+              onFileReport={handleFileGstReport}
+            />
+          )}
 
-        {currentTab === 'supplier-vault' && (
-          <SupplierVaultView
-            documents={supplierDocs}
-            currentUser={currentUser}
-            onOpenUploadModal={() => setIsUploadDocModalOpen(true)}
-            onDeleteDocument={handleDeleteSupplierDoc}
-            onUpdateStatus={handleUpdateSupplierDocStatus}
-            onConvertToInvoice={handleConvertDocToInvoice}
-          />
-        )}
+          {currentTab === 'invoices' && (
+            <InvoicesView
+              invoices={invoices}
+              currentUser={currentUser}
+              onOpenCreateModal={() => {
+                setEditingInvoice(null);
+                setIsInvoiceModalOpen(true);
+              }}
+              onEditInvoice={(inv) => {
+                setEditingInvoice(inv);
+                setIsInvoiceModalOpen(true);
+              }}
+              onDeleteInvoice={handleDeleteInvoice}
+              onUpdateStatus={handleUpdateInvoiceStatus}
+              onViewSupplierDoc={(docId) => setCurrentTab('supplier-vault')}
+            />
+          )}
 
-        {currentTab === 'neon' && (
-          <NeonDatabaseView
-            invoices={invoices}
-            supplierDocs={supplierDocs}
-            gstReports={gstReports}
-            currentUser={currentUser}
-            onRefreshData={handleManualSync}
-          />
-        )}
+          {currentTab === 'supplier-vault' && (
+            <SupplierVaultView
+              documents={supplierDocs}
+              currentUser={currentUser}
+              onOpenUploadModal={() => setIsUploadDocModalOpen(true)}
+              onDeleteDocument={handleDeleteSupplierDoc}
+              onUpdateStatus={handleUpdateSupplierDocStatus}
+              onConvertToInvoice={handleConvertDocToInvoice}
+            />
+          )}
 
-        {currentTab === 'backups' && (
-          <CloudBackupsView
-            backups={backups}
-            currentUser={currentUser}
-            invoices={invoices}
-            supplierDocs={supplierDocs}
-            gstReports={gstReports}
-            onCreateBackup={handleCreateBackup}
-            onRestoreBackup={handleRestoreBackup}
-            onImportBackupJson={handleImportBackupJson}
-          />
-        )}
+          {(currentTab === 'admin-hub' || currentTab === 'roles') && (
+            <AdminCenterView
+              currentUser={currentUser}
+              onRoleChange={handleRoleChange}
+              onUpdateCompanyProfile={handleUpdateBusinessProfile}
+              systemSettings={systemSettings}
+              onUpdateSystemSettings={handleUpdateSystemSettings}
+              usersList={usersList}
+              onCreateUser={handleCreateUser}
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
+              isFirebaseUser={!!firebaseUser}
+              onGoogleSignIn={handleGoogleSignIn}
+              onSignOut={handleSignOut}
+              onOpenLoginModal={() => setIsLoginModalOpen(true)}
+            />
+          )}
 
-        {currentTab === 'roles' && (
-          <RolesSecurityView
-            currentUser={currentUser}
-            onRoleChange={handleRoleChange}
-            onUpdateCompanyProfile={(profile) => setCurrentUser((prev) => ({ ...prev, ...profile }))}
-            isFirebaseUser={!!firebaseUser}
-            onGoogleSignIn={handleGoogleSignIn}
-            onSignOut={handleSignOut}
-          />
-        )}
-      </main>
+          {currentTab === 'neon' && (
+            <NeonDatabaseView
+              invoices={invoices}
+              supplierDocs={supplierDocs}
+              gstReports={gstReports}
+              currentUser={currentUser}
+              onRefreshData={handleManualSync}
+            />
+          )}
+
+          {currentTab === 'backups' && (
+            <CloudBackupsView
+              backups={backups}
+              currentUser={currentUser}
+              invoices={invoices}
+              supplierDocs={supplierDocs}
+              gstReports={gstReports}
+              onCreateBackup={handleCreateBackup}
+              onRestoreBackup={handleRestoreBackup}
+              onImportBackupJson={handleImportBackupJson}
+            />
+          )}
+        </main>
+      </div>
 
       {/* Invoice Modal */}
       <InvoiceModal
@@ -573,6 +673,16 @@ export default function App() {
         onClose={() => setIsUploadDocModalOpen(false)}
         onUpload={handleUploadSupplierDoc}
         currentUser={currentUser}
+      />
+
+      {/* Login & Role Authentication Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onGoogleSignIn={handleGoogleSignIn}
+        onQuickRoleLogin={handleQuickRoleLogin}
+        currentRole={currentUser.role}
+        isFirebaseUser={!!firebaseUser}
       />
     </div>
   );
