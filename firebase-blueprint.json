@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Sales or purchase invoice record with comprehensive GST breakdown and line items",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 64, "description": "Unique invoice tracking code" },
+        "type": { "type": "string", "enum": ["sales", "purchase"], "description": "Sales or purchase invoice" },
+        "counterpartyName": { "type": "string", "maxLength": 128, "description": "Client or Vendor business name" },
+        "counterpartyGstin": { "type": "string", "maxLength": 32, "description": "GST Identification Number" },
+        "invoiceDate": { "type": "string", "maxLength": 32, "description": "Date of invoice issue" },
+        "dueDate": { "type": "string", "maxLength": 32, "description": "Payment due date" },
+        "status": { "type": "string", "enum": ["draft", "pending", "paid", "overdue", "cancelled"], "description": "Payment and processing status" },
+        "taxableSubtotal": { "type": "number", "description": "Total taxable value before GST" },
+        "totalCgst": { "type": "number", "description": "Central GST total" },
+        "totalSgst": { "type": "number", "description": "State GST total" },
+        "totalIgst": { "type": "number", "description": "Integrated GST total" },
+        "grandTotal": { "type": "number", "description": "Final payable amount including all taxes" },
+        "placeOfSupply": { "type": "string", "maxLength": 64, "description": "State / territory code for IGST determination" },
+        "isReverseCharge": { "type": "boolean", "description": "Whether tax is payable on reverse charge basis" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Internal notes or remarks" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Owner user UID" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" },
+        "updatedAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" }
+      },
+      "required": ["invoiceNumber", "type", "counterpartyName", "invoiceDate", "grandTotal", "userId"]
+    },
+    "SupplierDocument": {
+      "title": "SupplierDocument",
+      "description": "Archived supplier PDF invoice or receipt with metadata for audit trail",
+      "type": "object",
+      "properties": {
+        "fileName": { "type": "string", "maxLength": 128, "description": "Original file name" },
+        "supplierName": { "type": "string", "maxLength": 128, "description": "Supplier business name" },
+        "supplierGstin": { "type": "string", "maxLength": 32, "description": "Supplier GSTIN" },
+        "invoiceNumber": { "type": "string", "maxLength": 64, "description": "Supplier invoice identifier" },
+        "invoiceDate": { "type": "string", "maxLength": 32, "description": "Invoice date on document" },
+        "totalAmount": { "type": "number", "description": "Invoice amount" },
+        "taxAmount": { "type": "number", "description": "GST tax amount on invoice" },
+        "fileData": { "type": "string", "maxLength": 500000, "description": "Base64 data or storage ref" },
+        "fileSize": { "type": "number", "description": "File size in bytes" },
+        "status": { "type": "string", "enum": ["verified", "pending_review", "reconciled"], "description": "Audit verification status" },
+        "category": { "type": "string", "maxLength": 64, "description": "Expense category" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Owner user UID" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" }
+      },
+      "required": ["fileName", "supplierName", "invoiceNumber", "totalAmount", "userId"]
+    },
+    "GstReport": {
+      "title": "GstReport",
+      "description": "Periodical GST report statement (GSTR-1, GSTR-3B) with tax liabilities and input tax credit",
+      "type": "object",
+      "properties": {
+        "period": { "type": "string", "maxLength": 32, "description": "Tax period e.g. 2026-10" },
+        "reportType": { "type": "string", "enum": ["GSTR-1", "GSTR-3B", "ANNUAL_SUMMARY"], "description": "GST return statutory type" },
+        "taxableSales": { "type": "number", "description": "Outward taxable supplies" },
+        "taxablePurchases": { "type": "number", "description": "Inward taxable supplies" },
+        "outputCgst": { "type": "number", "description": "Output CGST collected" },
+        "outputSgst": { "type": "number", "description": "Output SGST collected" },
+        "outputIgst": { "type": "number", "description": "Output IGST collected" },
+        "itcCgst": { "type": "number", "description": "Input CGST credit eligible" },
+        "itcSgst": { "type": "number", "description": "Input SGST credit eligible" },
+        "itcIgst": { "type": "number", "description": "Input IGST credit eligible" },
+        "netPayable": { "type": "number", "description": "Net tax payable after ITC adjustment" },
+        "status": { "type": "string", "enum": ["draft", "reconciled", "filed"], "description": "Filing status" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Owner user UID" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" }
+      },
+      "required": ["period", "reportType", "netPayable", "userId"]
+    },
+    "BackupSnapshot": {
+      "title": "BackupSnapshot",
+      "description": "Financial ledger snapshot record for automated cloud and disaster recovery",
+      "type": "object",
+      "properties": {
+        "snapshotTitle": { "type": "string", "maxLength": 128, "description": "Backup label or version" },
+        "snapshotType": { "type": "string", "enum": ["automated", "manual", "scheduled"], "description": "Trigger origin" },
+        "recordCount": { "type": "number", "description": "Total records included" },
+        "sizeKb": { "type": "number", "description": "Payload size in KB" },
+        "storageLocation": { "type": "string", "maxLength": 64, "description": "Cloud bucket or vault identifier" },
+        "status": { "type": "string", "enum": ["active", "archived", "restored"], "description": "Snapshot state" },
+        "userId": { "type": "string", "maxLength": 128, "description": "User UID" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" }
+      },
+      "required": ["snapshotTitle", "snapshotType", "userId", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access control and granular financial permissions",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 128, "description": "User email address" },
+        "displayName": { "type": "string", "maxLength": 128, "description": "User full name" },
+        "role": { "type": "string", "enum": ["admin", "finance_manager", "accountant", "auditor"], "description": "Assigned organizational role" },
+        "companyName": { "type": "string", "maxLength": 128, "description": "Business organization name" },
+        "gstin": { "type": "string", "maxLength": 32, "description": "Business GST identification number" },
+        "canCreateInvoices": { "type": "boolean", "description": "Permission to generate invoices" },
+        "canEditInvoices": { "type": "boolean", "description": "Permission to modify invoices" },
+        "canManageGst": { "type": "boolean", "description": "Permission to file & edit GST reports" },
+        "canExportReports": { "type": "boolean", "description": "Permission to download PDF summaries" },
+        "canManageBackups": { "type": "boolean", "description": "Permission to trigger cloud backups" },
+        "updatedAt": { "type": "string", "maxLength": 64, "description": "ISO timestamp" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Collection of business invoices (sales and purchases)"
+    },
+    "/supplier_documents/{documentId}": {
+      "schema": "SupplierDocument",
+      "description": "Centralized archive of supplier PDF invoices and receipts"
+    },
+    "/gst_reports/{reportId}": {
+      "schema": "GstReport",
+      "description": "Statutory GST reports and tax return reconciliation records"
+    },
+    "/backup_snapshots/{backupId}": {
+      "schema": "BackupSnapshot",
+      "description": "System automated cloud backups and ledger restore checkpoints"
+    },
+    "/user_profiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "User account settings, roles, and granular permission flags"
+    }
+  }
+}

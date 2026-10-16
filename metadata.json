@@ -1,0 +1,6 @@
+{
+  "name": "TaxFlow Pro - Business Invoicing & GST Compliance Suite",
+  "description": "Complete enterprise invoice management, statutory GST reporting with ITC reconciliation, automated cloud backups, supplier invoice vault, and cash flow analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

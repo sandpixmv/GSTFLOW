@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "sandpix.mv@gmail.com" ||
+        (exists(/databases/$(database)/documents/user_profiles/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(invoiceId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.invoiceNumber is string &&
+        request.resource.data.invoiceNumber.size() <= 64 &&
+        request.resource.data.counterpartyName is string &&
+        request.resource.data.counterpartyName.size() <= 128 &&
+        request.resource.data.grandTotal is number;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Supplier Documents collection (Archived PDF invoices)
+    match /supplier_documents/{documentId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(documentId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.fileName is string &&
+        request.resource.data.fileName.size() <= 128 &&
+        request.resource.data.supplierName is string &&
+        request.resource.data.totalAmount is number;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // GST Reports collection
+    match /gst_reports/{reportId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(reportId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.period is string &&
+        request.resource.data.period.size() <= 32 &&
+        request.resource.data.reportType is string;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Backup Snapshots collection
+    match /backup_snapshots/{backupId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(backupId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.snapshotTitle is string &&
+        request.resource.data.snapshotTitle.size() <= 128;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // User Profiles collection
+    match /user_profiles/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.email is string &&
+        request.resource.data.role is string;
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
